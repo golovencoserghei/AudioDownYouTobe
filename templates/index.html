@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Аудио Загрузчик</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Arial', sans-serif;
+        }
+        .container {
+            margin-top: 50px;
+        }
+        .card {
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+        .form-label {
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="card">
+                    <h3 class="card-title text-center mb-4">Скачать аудио с YouTube</h3>
+                    
+                    <!-- Flash сообщения -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            <div class="alert alert-{{ messages[0][0] }} alert-dismissible fade show" role="alert">
+                                {{ messages[0][1] }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="url" class="form-label">Ссылка на видео</label>
+                            <input type="text" class="form-control" id="url" name="url" required placeholder="Введите ссылку на YouTube">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="format" class="form-label">Формат</label>
+                            <select class="form-select" id="format" name="format">
+                                <option value="mp3">MP3</option>
+                                <option value="wav">WAV</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="quality" class="form-label">Качество</label>
+                            <select class="form-select" id="quality" name="quality">
+                                <option value="128">128 kbps</option>
+                                <option value="192">192 kbps</option>
+                                <option value="320" selected>320 kbps</option>
+                            </select>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg">Скачать</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS, Popper.js, и jQuery (для некоторых компонентов) -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
+</body>
+</html>
