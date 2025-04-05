@@ -43,6 +43,7 @@ def cleanup(files):
     try:
         for file in files:
             file_path = os.path.join(TEMP_DIR, file)
+            print(f"Пытаемся удалить: {file_path}")
             if os.path.exists(file_path):
                 os.remove(file_path)
                 print(f"Удалён файл: {file_path}")
