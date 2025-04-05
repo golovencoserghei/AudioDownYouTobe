@@ -5,13 +5,11 @@ from flask import Flask, render_template, request, send_file, flash
 from flask_bootstrap import Bootstrap
 
 app = Flask(__name__)
-app.secret_key = 'supersecretkey'  # Для использования flash сообщений
+app.secret_key = 'supersecretkey'
 Bootstrap(app)
 
-# Папка для временных файлов
 TEMP_DIR = 'temp_audio'
 
-# Функция для скачивания аудио с YouTube
 def download_audio(url):
     ydl_opts = {
         'format': 'bestaudio/best',
@@ -23,11 +21,10 @@ def download_audio(url):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info_dict)
-            return os.path.basename(filename)  # Возвращаем только имя файла, без пути
+            return filename
     except Exception as e:
         return f'ERRaOR:{str(e)}'
 
-# Функция для конвертации файла в MP3 с максимальным битрейтом
 def convert_audio(input_file, output_format='mp3'):
     output_file = input_file.rsplit('.', 1)[0] + f'.{output_format}'
 
@@ -35,16 +32,13 @@ def convert_audio(input_file, output_format='mp3'):
         return f'Ошибка: Файл {input_file} не найден.'
 
     try:
-        # Используем ffmpeg для конвертации в MP3 с максимальным битрейтом (320 kbps)
         ffmpeg.input(input_file).output(output_file, audio_bitrate='320k').run()
     except ffmpeg._run.Error as e:
-        # Если произошла ошибка ffmpeg, захватываем вывод stderr
         error_message = e.stderr.decode('utf-8') if e.stderr else 'Неизвестная ошибка'
         return f'Ошибка при конвертации: {error_message}'
 
     return output_file
 
-# Функция для удаления файлов
 def cleanup(files):
     try:
         for file in files:
@@ -62,7 +56,6 @@ def index():
     if request.method == 'POST':
         url = request.form['url']
 
-        # Проверяем, что URL не пустой
         if not url:
             flash('Введите ссылку на YouTube!', 'danger')
             return render_template('index.html')
@@ -70,7 +63,6 @@ def index():
         if not os.path.exists(TEMP_DIR):
             os.makedirs(TEMP_DIR)
 
-        # Скачиваем аудио в самом высоком доступном качестве
         downloaded_file = download_audio(url)
 
         if downloaded_file is None:
@@ -80,18 +72,15 @@ def index():
             flash(f'Ошибка при скачивании: {downloaded_file}', 'danger')
             return render_template('index.html')
 
-        # Конвертируем в MP3 с максимальным битрейтом
         output_file = convert_audio(downloaded_file, 'mp3')
 
         if output_file.startswith('Ошибка'):
             flash(output_file, 'danger')
             return render_template('index.html')
 
-        # Отправляем файл пользователю
         try:
             response = send_file(output_file, as_attachment=True)
 
-            # Удаляем временные файлы после отправки
             @response.call_on_close
             def cleanup_files():
                 cleanup([downloaded_file, output_file])
