@@ -1,0 +1,4 @@
+Flask
+Flask-Bootstrap
+yt-dlp
+ffmpeg-python

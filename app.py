@@ -3,44 +3,47 @@ import yt_dlp
 import ffmpeg
 from flask import Flask, render_template, request, send_file, flash
 from flask_bootstrap import Bootstrap
+import uuid
 
 app = Flask(__name__)
-app.secret_key = 'supersecretkey'  # Для использования flash сообщений
+app.secret_key = 'supersecretkey'
 Bootstrap(app)
 
-# Папка для временных файлов
-TEMP_DIR = 'temp_audio'
+# Абсолютный путь к папке временных файлов
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+TEMP_DIR = os.path.join(BASE_DIR, 'temp_audio')
+
+# Создание временной папки при старте
+os.makedirs(TEMP_DIR, exist_ok=True)
 
 # Функция для скачивания аудио с YouTube
 def download_audio(url):
-    # Настроим ydl_opts для скачивания самого высокого качества аудио
+    filename_uuid = str(uuid.uuid4())  # Уникальное имя файла
+    outtmpl = os.path.join(TEMP_DIR, f'{filename_uuid}.%(ext)s')
+
     ydl_opts = {
-        'format': 'bestaudio/best',  # Скачиваем лучший аудиоформат
-        'extractaudio': True,  # Извлекаем только аудио
-        'outtmpl': f'{TEMP_DIR}/%(title)s.%(ext)s',  # Название файла по названию видео
+        'format': 'bestaudio/best',
+        'outtmpl': outtmpl,
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info_dict)
-            return filename
+            downloaded_path = ydl.prepare_filename(info_dict)
+            return downloaded_path
     except Exception as e:
-        # Логируем ошибку и возвращаем текст ошибки
-        return str(e)
+        return f'Ошибка при скачивании: {str(e)}'
 
-# Функция для конвертации файла в MP3 с максимальным битрейтом
+# Конвертация в MP3 с максимальным битрейтом
 def convert_audio(input_file, output_format='mp3'):
-    output_file = input_file.rsplit('.', 1)[0] + f'.{output_format}'
+    output_file = os.path.splitext(input_file)[0] + f'.{output_format}'
 
     if not os.path.exists(input_file):
         return f'Ошибка: Файл {input_file} не найден.'
 
     try:
-        # Используем ffmpeg для конвертации в MP3 с максимальным битрейтом (320 kbps)
-        ffmpeg.input(input_file).output(output_file, audio_bitrate='320k').run()
+        ffmpeg.input(input_file).output(output_file, audio_bitrate='320k').run(overwrite_output=True)
     except ffmpeg._run.Error as e:
-        # Если произошла ошибка ffmpeg, захватываем вывод stderr
         error_message = e.stderr.decode('utf-8') if e.stderr else 'Неизвестная ошибка'
         return f'Ошибка при конвертации: {error_message}'
 
@@ -51,35 +54,39 @@ def index():
     if request.method == 'POST':
         url = request.form['url']
 
-        # Проверяем, что URL не пустой
         if not url:
             flash('Введите ссылку на YouTube!', 'danger')
             return render_template('index.html')
 
-        if not os.path.exists(TEMP_DIR):
-            os.makedirs(TEMP_DIR)
-
-        # Скачиваем аудио в самом высоком доступном качестве
         downloaded_file = download_audio(url)
 
-        if downloaded_file is None:
-            flash('Произошла ошибка при скачивании. Проверьте ссылку и попробуйте снова.', 'danger')
-            return render_template('index.html')
-        elif downloaded_file.startswith('ERROR:'):
-            flash(f'Ошибка при скачивании: {downloaded_file}', 'danger')
+        if downloaded_file is None or downloaded_file.startswith('Ошибка'):
+            flash(downloaded_file, 'danger')
             return render_template('index.html')
 
-        # Конвертируем в MP3 с максимальным битрейтом
         output_file = convert_audio(downloaded_file, 'mp3')
 
         if output_file.startswith('Ошибка'):
             flash(output_file, 'danger')
             return render_template('index.html')
 
-        # Отправляем файл пользователю
-        return send_file(output_file, as_attachment=True)
+        # Отправка файла пользователю
+        try:
+            response = send_file(output_file, as_attachment=True)
+
+            @response.call_on_close
+            def cleanup():
+                try:
+                    if os.path.exists(downloaded_file):
+                        os.remove(downloaded_file)
+                    if os.path.exists(output_file):
+                        os.remove(output_file)
+                except Exception as e:
+                    print(f'Ошибка при удалении файлов: {e}')
+
+            return response
+
+        except Exception as e:
+            flash(f'Ошибка при отправке файла: {str(e)}', 'danger')
 
     return render_template('index.html')
-
-if __name__ == '__main__':
-    app.run(debug=True)
