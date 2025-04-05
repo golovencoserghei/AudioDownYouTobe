@@ -13,21 +13,19 @@ TEMP_DIR = 'temp_audio'
 
 # Функция для скачивания аудио с YouTube
 def download_audio(url):
-    # Настроим ydl_opts для скачивания самого высокого качества аудио
     ydl_opts = {
-        'format': 'bestaudio/best',  # Скачиваем лучший аудиоформат
-        'extractaudio': True,  # Извлекаем только аудио
-        'outtmpl': f'{TEMP_DIR}/%(title)s.%(ext)s',  # Название файла по названию видео
+        'format': 'bestaudio/best',
+        'extractaudio': True,
+        'outtmpl': f'{TEMP_DIR}/%(title)s.%(ext)s',
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info_dict)
-            return filename
+            return os.path.basename(filename)  # Возвращаем только имя файла, без пути
     except Exception as e:
-        # Логируем ошибку и возвращаем текст ошибки
-        return str(e)
+        return f'ERRaOR:{str(e)}'
 
 # Функция для конвертации файла в MP3 с максимальным битрейтом
 def convert_audio(input_file, output_format='mp3'):
@@ -50,8 +48,12 @@ def convert_audio(input_file, output_format='mp3'):
 def cleanup(files):
     try:
         for file in files:
-            if os.path.exists(file):
-                os.remove(file)
+            file_path = os.path.join(TEMP_DIR, file)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                print(f"Удалён файл: {file_path}")
+            else:
+                print(f"Файл не найден: {file_path}")
     except Exception as e:
         print(f'Ошибка при удалении файлов: {e}')
 
@@ -74,7 +76,7 @@ def index():
         if downloaded_file is None:
             flash('Произошла ошибка при скачивании. Проверьте ссылку и попробуйте снова.', 'danger')
             return render_template('index.html')
-        elif downloaded_file.startswith('ERROR:'):
+        elif downloaded_file.startswith('ERRaOR:'):
             flash(f'Ошибка при скачивании: {downloaded_file}', 'danger')
             return render_template('index.html')
 
